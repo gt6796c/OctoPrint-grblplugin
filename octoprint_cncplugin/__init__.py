@@ -14,10 +14,10 @@ class CncPlugin(octoprint.plugin.StartupPlugin,
 		return dict(url="http://www.skippingrock.com")
 
 	def get_template_configs(self):
-    		return [
-        		#dict(type="navbar", custom_bindings=False),
-        		dict(type="settings", custom_bindings=False)
-    		]
+		return [
+			dict(type="navbar", custom_bindings=False),
+			dict(type="settings", custom_bindings=False)
+		]
 
 
 __plugin_implementations__ = [CncPlugin()]
