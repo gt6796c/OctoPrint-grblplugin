@@ -8,6 +8,9 @@ class CncPlugin(octoprint.plugin.StartupPlugin,
 		octoprint.plugin.SettingsPlugin):
 
 	def on_after_startup(self):
+		octoprint.filemanager.extensions['machinecode']['gcode'].extend(['nc'])
+		self._logger.info(octoprint.filemanager.extensions)
+		octoprint.filemanager.all_extensions = octoprint.filemanager.get_all_extensions()
 		self._logger.info("CNC Plugin (%s)" % self._settings.get(["url"]))
 
 	def get_settings_defaults(self):
