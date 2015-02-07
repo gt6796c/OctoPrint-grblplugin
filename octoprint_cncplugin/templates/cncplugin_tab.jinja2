@@ -1,0 +1,10 @@
+<!-- TODO: tie to loginState
+<div class="jog-panel" style="display: none;" data-bind="visible: loginState.isUser">
+-->
+<div class="jog-panel">
+    <h1>Control</h1>
+    <div>
+        <button class="btn box" id="cnccontrol-home" data-bind="enable: isOperational() && !isPrinting() && loginState.isUser(), click: function() { $root.sendCustomCommand({type:'command',command:'$H'}) }">Homing</button>
+        <button class="btn box" id="cnccontrol-unlock" data-bind="enable: isOperational() && !isPrinting() && loginState.isUser(), click: function() { $root.sendCustomCommand({type:'command',command:'$X'}) }">Unlock</button>
+    </div>
+</div>
