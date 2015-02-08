@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import octoprint.plugin
 import octoprint.printer
+import octoprint.util
 import re
 
 from octoprint.events import eventManager, Events
@@ -27,6 +28,7 @@ class CncPlugin(
             CncPlugin.__instance._isGrbl = None
             CncPlugin.__instance._needPosUpdate = True
             CncPlugin.__instance._lastPos = dict(MPos='',WPos='')
+            CncPlugin.__instance._isCommsInitializing = None
         return CncPlugin.__instance
 
     def isInitialized(self):
@@ -81,14 +83,11 @@ class CncPlugin(
         if data is None or data['state'] is None or data['state']['text'] is None:
             return
 
-        # can use name, model, or id. Going to use model for now
-        stext = data['state']['text']
-
         # note that these strings are hard coded and therefore brittle
-        if (stext == "Detecting baudrate"
-            or stext == "Opening Serial Port"
-            or stext == "Detecting Serial Port"):
+        if self._isCommsInitializing:
             cpp = self._printer_profile_manager.get_current_or_default()
+            
+            # can use name, model, or id. Going to use model for now
             if cpp is not None and '(grbl)' in cpp['model']:
                 self._isGrbl = True
             else:
@@ -126,20 +125,35 @@ def roundAllFloats(line, precision):
     return(line)
 
 
-def line_hook(comm,line):
+def output_hook(comm,line,sendChecksum):
+    cnc = CncPlugin()
+    if not cnc.isInitialized():
+        return line,sendChecksum
+
+    if not cnc._isGrbl:
+        return line, sendChecksum
+    
+    return line, False
+    
+def input_hook(comm,line):
     cnc = CncPlugin()
     if not cnc.isInitialized():
         return line
+    
+    cnc._isCommsInitializing = comm.isInitializing()
     
     if not cnc._isGrbl:
         return line
     
     # this part here is deeply tied to current implementation
-    if comm._state == comm.STATE_DETECT_BAUDRATE \
-            or comm._state == comm.STATE_CONNECTING:
+    if comm.isInitializing():
         if '$$' in line:
             comm._state = comm.STATE_CONNECTING
             return 'ok T:0'
+    
+    # The easiest way to deal with all the extra commands for extruders and whatnot
+    if line.startswith('error: '):
+        return 'ok'
     
     return line
     
@@ -148,39 +162,24 @@ def gcode_hook(comm,cmd):
     if not cnc.isInitialized():
         return cmd
 
+    cnc._isCommsInitializing = comm.isInitializing()
+    
     if not cnc._isGrbl:
         return cmd
 
     if cmd == 'M105':
         if comm.isOperational():
             # this is annoying. I want it to noop, but if I send None or '' it ends up sending the original cmd
-            return '?' if cnc._needPosUpdate else ' '
+            return '?' if cnc._needPosUpdate else None
         else:
             return '$'
 
     if cnc._settings.get(['trim_floats']):
         cmd = roundAllFloats(cmd,cnc._settings.getInt(['float_precision']))
+    
+    return cmd
 
 __plugin_implementations__ = [CncPlugin()]
-__plugin_hooks__ = {'octoprint.comm.protocol.gcode' : gcode_hook, 'octoprint.comm.protocol.input' : line_hook}
-
-'''
-looks like I should be able to try to manage the M105 / ? thing here.
-It looks like the best thing to do would be to look at some printer profile setting
-and do the m105/? thing based on a "GCode Flavor" setting
-
-I could make it decoupled from that and just make it a manual setting somewhere. I could probably
-add it into the sidebar or something.
-
-the biggest issue is that I need a chance to see what the responses are and those just are not available.
-it is possible that I could do a matcher, but then I'd have to figure out how to suppress it since all
-i really care about is during the board connection.
-
-also looks like I can access the _xxx properties from both comm and the CncPlugin so I can probably dive
-in pretty deeply.
-
-getting sucked in here....
-
-ooh - I could just use a string in the printer profile name like (grbl) to do the overrides?
-
-'''
+__plugin_hooks__ = {'octoprint.comm.protocol.gcode' : gcode_hook, 
+                    'octoprint.comm.protocol.input' : input_hook,
+                    'octoprint.comm.protocol.output' : output_hook}
