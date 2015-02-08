@@ -2,7 +2,7 @@
  * Created by njones on 2/5/15.
  */
 
-function CncPositionViewModel(loginStateViewModel) {
+function GrblPluginViewModel(loginStateViewModel) {
     var self = this;
 
     self.loginState = loginStateViewModel;
@@ -22,5 +22,4 @@ function CncPositionViewModel(loginStateViewModel) {
     };
 }
 
-//ADDITIONAL_VIEWMODELS.push([CncPositionViewModel, ["loginStateViewModel"], document.getElementById("settings_plugin_cncplugin")]);
-ADDITIONAL_VIEWMODELS.push([CncPositionViewModel, ["loginStateViewModel"], document.getElementById("sidebar_plugin_cncplugin")]);
+ADDITIONAL_VIEWMODELS.push([GrblPluginViewModel, ["loginStateViewModel"], document.getElementById("sidebar_plugin_grblplugin")]);

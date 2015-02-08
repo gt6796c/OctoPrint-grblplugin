@@ -13,7 +13,7 @@ import octoprint.settings
 
 # singleton
 _instance = None
-class CncPlugin(
+class GrblPlugin(
                 octoprint.plugin.StartupPlugin,
                 octoprint.plugin.TemplatePlugin,
                 octoprint.plugin.SettingsPlugin,
@@ -23,13 +23,13 @@ class CncPlugin(
     __instance = None
 
     def __new__(cls):
-        if CncPlugin.__instance is None:
-            CncPlugin.__instance = object.__new__(cls)
-            CncPlugin.__instance._isGrbl = None
-            CncPlugin.__instance._needPosUpdate = True
-            CncPlugin.__instance._lastPos = dict(MPos='',WPos='')
-            CncPlugin.__instance._isCommsInitializing = None
-        return CncPlugin.__instance
+        if GrblPlugin.__instance is None:
+            GrblPlugin.__instance = object.__new__(cls)
+            GrblPlugin.__instance._isGrbl = None
+            GrblPlugin.__instance._needPosUpdate = True
+            GrblPlugin.__instance._lastPos = dict(MPos='',WPos='')
+            GrblPlugin.__instance._isCommsInitializing = None
+        return GrblPlugin.__instance
 
     def isInitialized(self):
         return self._printer is not None
@@ -55,7 +55,7 @@ class CncPlugin(
         # update the extensions allowed by the file manager
         octoprint.filemanager.extensions['machinecode']['gcode'].extend(['nc'])
         octoprint.filemanager.all_extensions = octoprint.filemanager.get_all_extensions()
-        self._logger.info("CNC Plugin initialized")
+        self._logger.info("grbl Plugin initialized")
 
 
     def sendFeedbackCommandOutput(self, name, output):
@@ -101,7 +101,7 @@ class CncPlugin(
 
     def get_assets(self):
         return dict(
-            js=['js/cncposition.js']
+            js=['js/grbl-model.js']
         )
 
     def get_settings_defaults(self):
@@ -126,23 +126,23 @@ def roundAllFloats(line, precision):
 
 
 def output_hook(comm,line,sendChecksum):
-    cnc = CncPlugin()
-    if not cnc.isInitialized():
+    grbl = GrblPlugin()
+    if not grbl.isInitialized():
         return line,sendChecksum
 
-    if not cnc._isGrbl:
+    if not grbl._isGrbl:
         return line, sendChecksum
     
     return line, False
     
 def input_hook(comm,line):
-    cnc = CncPlugin()
-    if not cnc.isInitialized():
+    grbl = GrblPlugin()
+    if not grbl.isInitialized():
         return line
     
-    cnc._isCommsInitializing = comm.isInitializing()
+    grbl._isCommsInitializing = comm.isInitializing()
     
-    if not cnc._isGrbl:
+    if not grbl._isGrbl:
         return line
     
     # this part here is deeply tied to current implementation
@@ -158,28 +158,32 @@ def input_hook(comm,line):
     return line
     
 def gcode_hook(comm,cmd):
-    cnc = CncPlugin()
-    if not cnc.isInitialized():
+    grbl = GrblPlugin()
+    if not grbl.isInitialized():
         return cmd
 
-    cnc._isCommsInitializing = comm.isInitializing()
+    grbl._isCommsInitializing = comm.isInitializing()
     
-    if not cnc._isGrbl:
+    if not grbl._isGrbl:
         return cmd
 
     if cmd == 'M105':
         if comm.isOperational():
             # this is annoying. I want it to noop, but if I send None or '' it ends up sending the original cmd
-            return '?' if cnc._needPosUpdate else None
+            return '?' if grbl._needPosUpdate else None
         else:
             return '$'
 
-    if cnc._settings.get(['trim_floats']):
-        cmd = roundAllFloats(cmd,cnc._settings.getInt(['float_precision']))
+    if grbl._settings.get(['trim_floats']):
+        cmd = roundAllFloats(cmd,grbl._settings.getInt(['float_precision']))
     
     return cmd
 
-__plugin_implementations__ = [CncPlugin()]
+__plugin_identifier = 'grblplugin'
+__plugin_name = 'octoprint_grblplugin'
+__plugin_description = 'Plugin to allow OctoPrint to communicate with grbl boards'
+__plugin_version = '0.1'
+__plugin_implementations__ = [GrblPlugin()]
 __plugin_hooks__ = {'octoprint.comm.protocol.gcode' : gcode_hook, 
                     'octoprint.comm.protocol.input' : input_hook,
                     'octoprint.comm.protocol.output' : output_hook}
