@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+import sys
+import os
+from subprocess import check_call
+
+tservo = 2
+pservo = 5
+
+if len(sys.argv) < 2:
+  print "usage: pan-tilt [p 0-100] [t 0-100]"
+  exit(1)
+
+ptarget = int(sys.argv[1])
+ttarget = int(sys.argv[2])
+
+p = os.path.expanduser('~/.config/pan-tilt')
+if not os.path.exists(p):
+  os.makedirs(p)
+
+pn = os.path.join(p,'pan')
+tn = os.path.join(p,'tilt')
+
+pval = 0
+tval = 0
+
+if os.path.exists(pn):
+  pval = int(open(pn).readline())
+if os.path.exists(tn):
+  tval = int(open(tn).readline())
+
+def move(servo, from_pos, to_pos):
+  if to_pos > from_pos:
+    for x in xrange(from_pos,to_pos):
+      check_call("/bin/echo %d=%d%% > /dev/servoblaster" % (servo, x), shell=True)
+  else:
+    for x in xrange(from_pos,to_pos-1,-1):
+      check_call("/bin/echo %d=%d%% > /dev/servoblaster" % (servo, x), shell=True)
+
+move(pservo,pval,ptarget)
+move(tservo,tval,ttarget)
+
+open(pn,'w').write(str(ptarget))
+open(tn,'w').write(str(ttarget))
+
+
